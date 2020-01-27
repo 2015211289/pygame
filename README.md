@@ -10,12 +10,7 @@ Operation guide：
 * press q key to quit
 
 Concerning that the new Coronavirus infection is serious in HuBei province
- and other places in the world, we must take actions to overcome this
-  suffering.  
- Our
- goal is to
- kill all
- virus, fight
- for our
- compatriots！
+ and other places in the world, we must take actions to overcome this suffering.  
+Our goal is to kill all virus, fight for our compatriots！
 
+Download this repository and run the alien_invasion.py to start this game.

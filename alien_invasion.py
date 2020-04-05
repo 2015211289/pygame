@@ -7,11 +7,15 @@ from game_stats import GameStats
 from scoreboard import Scoreboard
 from settings import Settings
 from ship import Ship
+from shoot_area import Area
 
 
 def run_game():
     # initiate
     pygame.init()
+    FPS = 30  # frames per second setting
+    fpsClock = pygame.time.Clock()
+
     ai_settings = Settings()
     screen = pygame.display.set_mode((ai_settings.screen_width,
                                       ai_settings.screen_height))
@@ -19,11 +23,11 @@ def run_game():
 
     play_button = Button(ai_settings, screen, "play")
     ship = Ship(screen, ai_settings)
-
+    area=Area(ai_settings,screen)
     bullets = Group()
 
     aliens = Group()
-    gf.create_fleet(ai_settings, screen, ship, aliens)
+
     stats = GameStats(ai_settings)
     sb = Scoreboard(ai_settings, screen, stats)
 
@@ -32,6 +36,8 @@ def run_game():
         gf.check_events(ai_settings, screen, stats, sb, play_button, ship,
                         aliens,
                         bullets)
+        gf.check_areas(ai_settings,screen,ship,aliens,area,bullets)
+
 
         if stats.game_active:
             ship.update()
@@ -41,7 +47,10 @@ def run_game():
                              bullets)
 
         gf.update_screen(ai_settings, screen, stats, sb, ship,
-                         aliens, bullets, play_button)
+                         aliens, bullets, play_button, area)
+
+        fpsClock.tick(FPS)
 
 
-run_game()
+if __name__ == '__main__':
+    run_game()

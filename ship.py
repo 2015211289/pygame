@@ -1,12 +1,11 @@
-import math
 import random
 
 import numpy
 import pygame
 from pygame.sprite import Sprite
 
-from particle import Particle
 from bullet import BulletBoard
+from particle import Particle
 
 
 class Ship(Sprite):
@@ -31,16 +30,17 @@ class Ship(Sprite):
         self.avey = 0
 
         self.target = []
+        self.target_width = 0
+        self.target_length = 0
         self.particles = []
-        self.particles_num = 200
-        self.recognize_x = 0
-        self.recognize_y = 0
+        self.particles_num = 100
+        self.recognize_rect = pygame.Rect(0, 0, 0, 0)
 
-        self.bullet_num=[20,10,5]
-        self.current_bullet=1
-        self.bullets_board=BulletBoard(ai_settings,screen,self)
-        self.bullet=None
-        self.shoot_light=0
+        self.bullet_num = [20, 10, 5]
+        self.current_bullet = 1
+        self.bullets_board = BulletBoard(ai_settings, screen, self)
+        self.bullet = None
+        self.shoot_light = 0
 
     def update(self):
         if self.moving_right and self.rect.right < self.screen_rect.right:
@@ -78,77 +78,67 @@ class Ship(Sprite):
         width, length = alien.image.get_size()
         pixelArray = numpy.zeros((width, length, 3), dtype=int)
         pygame.pixelcopy.surface_to_array(pixelArray, alien.image)
-        r = g = b = 0
+
+        r = 0
+        g = 0
+        b = 0
         for i in range(0, width):
             for j in range(0, length):
-                r += pixelArray[i][j][0]
-                g += pixelArray[i][j][1]
-                b += pixelArray[i][j][2]
+                for k in range(0, 3):
+                    r += pixelArray[i][j][0]
+                    g += pixelArray[i][j][1]
+                    b += pixelArray[i][j][2]
 
-        r = r / (length * width)
-        g = g / (length * width)
-        b = b / (length * width)
-        self.target.append(r)
-        self.target.append(g)
-        self.target.append(b)
+        del pixelArray
+        self.target.append(r / (width * length))
+        self.target.append(b / (width * length))
+        self.target.append(b / (width * length))
+        self.target_width = width
+        self.target_length = length
 
     def init_parciles(self):
         for i in range(0, self.particles_num):
-            p = Particle(random.randint(0, self.screen_rect.width - 50),
-                         random.randint(100, 150),
-                         self.screen, (0, 0, 0))
+            rect = pygame.Rect(random.randint(0, self.screen_rect.width -
+                                              self.target_width - 1),
+                               random.randint(100, 150),
+                               1, 1)
+            p = Particle(rect, self.screen,1/self.particles_num)
             self.particles.append(p)
 
-    def search_particles(self):
+    def search_particles(self, screen):
+        w = 0
         width, length = self.screen.get_size()
         pixelArray = numpy.zeros((width, length, 3), dtype=int)
-        pygame.pixelcopy.surface_to_array(pixelArray, self.screen)
+        pygame.pixelcopy.surface_to_array(pixelArray, screen)
 
-        for p in self.particles:
-            p.x = random.normalvariate(p.x, 20)
-            if p.x >= width: p.x = width - 1
-            if p.x < 0: p.x = 0
-            p.y = random.normalvariate(p.y, 20)
-            if p.y >= length: p.y = length - 1
-            if p.y < 0: p.y = 0
-
-            p.pixel = pixelArray[int(p.x)][int(p.y)]
-
-        del pixelArray
-        w = 0
-        for p in self.particles:
-            rmean = (p.pixel[0] + self.target[0]) / 2
-            r = p.pixel[0] - self.target[0]
-            g = p.pixel[1] - self.target[1]
-            b = p.pixel[2] - self.target[2]
-            p.dis = math.sqrt((((512 + rmean) * r * r) / 256) + 4 * g * g + (((
-                        767 - rmean) * b * b) / 256))
-            p.w = 1 / p.dis
-            w += p.w
-
-
+        for particle in self.particles:
+            particle.update(pixelArray)
+            particle.w = 1 / particle.get_dis(self.target) * particle.w
+            w += particle.w
         N = 0
+        del pixelArray
+        for particle in self.particles:
+            particle.w = particle.w / w
+            N += particle.w * particle.w
 
-        for p in self.particles:
-            x = p.w
-            p.w = p.w / w
-            N += x * x
-
-
+        if N == 0:
+            return
         N = 1 / N
-
-        if N < 100:
+        #print(N)
+        if N < 60:
             self.resample()
 
         x = 0
         y = 0
 
-        for i in self.particles:
-            x += i.w * i.x
-            y += i.w * i.y
+        for particle in self.particles:
+            x += particle.w * particle.rect.centerx
+            y += particle.w * particle.rect.centery
 
-        self.recognize_x = x
-        self.recognize_y = y
+        self.recognize_rect = pygame.Rect(x, y, self.target_width,
+                                          self.target_length)
+        self.recognize_rect.centerx=x
+        self.recognize_rect.centery=y
 
     def resample(self):
 
@@ -179,14 +169,15 @@ class Ship(Sprite):
 
         for i in range(0, self.particles_num):
             for j in range(0, times[i]):
-                self.particles.append(Particle(cop[i].x,cop[i].y,self.screen,
-                                               cop[i].pixel))
+                self.particles.append(Particle(pygame.Rect(cop[i].rect.left,
+                                                           cop[i].rect.top,
+                                                           cop[i].rect.width,
+                                                           cop[i].rect.height),
+                                               self.screen,1/self.particles_num))
 
-        for i in self.particles:
-            i.w = 1 / len(self.particles)
 
-
-    def show_particles(self):
-        for p in self.particles:
-            pygame.draw.circle(self.screen, (255, 0, 0), (int(p.x), int(p.y)),
-                               2, 0)
+    def show_recognize(self):
+        for particle in self.particles:
+            particle.draw()
+        pygame.draw.rect(self.screen, (255, 0, 0), self.recognize_rect,
+                         1)

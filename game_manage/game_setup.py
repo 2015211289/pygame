@@ -17,8 +17,10 @@ class Settings():
         self.score_scale = 1
 
         self.area_radius = 200
-        self.area_width=2
-        self.area_color=(255,0,0)
+        self.area_width = 2
+        self.area_color = (255, 0, 0)
+        self.auto=True
+        self.time=0
 
         self.initialize_dynamic_settings()
 

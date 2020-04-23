@@ -1,7 +1,20 @@
-import pygame.font
 from pygame.sprite import Group
 
-from ship import Ship
+from game_items import *
+
+
+class GameStats():
+
+    def __init__(self, ai_settings):
+        self.ai_settings = ai_settings
+        self.reset_stats()
+        self.game_active = False
+        self.high_score = 0
+
+    def reset_stats(self):
+        self.ships_left = self.ai_settings.ship_limit
+        self.score = 0
+        self.level = 1
 
 
 class Scoreboard():
@@ -65,3 +78,27 @@ class Scoreboard():
         self.screen.blit(self.level_image, self.level_rect)
         self.ships.draw(self.screen)
 
+
+class BulletBoard():
+    def __init__(self,ai_settings, screen,ship):
+        self.screen = screen
+        self.screen_rect = screen.get_rect()
+
+        self.ai_settings = ai_settings
+
+        self.text_color = (0, 0, 0)
+        self.font = pygame.font.SysFont(None, 48)
+        self.ship=ship
+
+    def prep_bullets(self):
+        bullets_str = "{0[0]} {0[1]} {0[2]}".format(self.ship.bullet_num)
+        self.bullet_image = self.font.render(bullets_str, True,
+                                             self.text_color,
+                                            self.ai_settings.bg_color)
+
+        self.score_rect = self.bullet_image.get_rect()
+        self.score_rect.right = self.screen_rect.right - 20
+        self.score_rect.bottom = self.screen_rect.bottom
+
+    def show_board(self):
+        self.screen.blit(self.bullet_image, self.score_rect)

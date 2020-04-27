@@ -11,10 +11,10 @@ class Area(Sprite):
         self.screen_rect = self.screen.get_rect()
 
         self.center_point = (self.screen_rect.centerx, self.screen_rect.centery)
-        self.radius = self.ai_settings.area_radius
-        self.width = self.ai_settings.area_width
-        self.color = self.ai_settings.area_color
-
+        self.radius = 200
+        self.width = 2
+        self.color = (255, 0, 0)
+        # 用于API判定冲突,暂时没用到
         self.rect = pygame.Rect(self.screen_rect.centerx,
                                 self.screen_rect.centery, 0, 0)
 

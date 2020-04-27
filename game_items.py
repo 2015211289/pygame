@@ -1,26 +1,26 @@
 import math
-
+import random
 import pygame
 from pygame.sprite import Sprite
 
 
 class Alien(Sprite):
 
-    def __init__(self, ai_settings, screen,type):
+    def __init__(self, ai_settings, screen,type,image_type):
         super().__init__()
         self.screen = screen
         self.ai_settings = ai_settings
+        if image_type==1:
+            image = pygame.image.load('images/timg.jpg')
+        else:
+            image = pygame.image.load('images/virus.jpg')
 
-        image = pygame.Surface.convert_alpha(pygame.image.load(
-            'images/timg.jpg'))
         self.image = pygame.transform.scale(image, (64, 49))
         self.rect = self.image.get_rect()
 
-        self.rect.x = self.rect.width
-        self.rect.y = self.rect.height
+        self.rect.centerx = self.rect.width
+        self.rect.centery = self.rect.height
 
-        self.x = float(self.rect.x)
-        self.y = float(self.rect.y)
 
         self.type = type
         self.strategy = {
@@ -44,23 +44,20 @@ class Alien(Sprite):
             return True
 
     def move_strategy_A(self):
-        self.x += self.ai_settings.alien_speed_factor * \
-                  self.ai_settings.fleet_direction
+        self.rect.centerx += self.ai_settings.alien_speed_factor * \
+                  self.direction
 
-        self.y += self.ai_settings.alien_speed_factor / 2
-        self.rect.x = self.x
-        self.rect.y = self.y
+        self.rect.centery += self.ai_settings.alien_speed_factor / 2
 
     def move_strategy_B(self):
-        self.y += self.ai_settings.alien_speed_factor / 2
-        self.x = math.sin(self.rect.y % math.pi) + \
-                 self.ai_settings.alien_speed_factor / 2 + self.x
-        self.rect.x = self.x
-        self.rect.y = self.y
+        self.rect.centery += self.ai_settings.alien_speed_factor / 2
+        self.rect.centerx = math.sin(self.rect.y % math.pi) + \
+                 self.direction*self.ai_settings.alien_speed_factor / 2 + self.rect.centerx
+
 
     def move_strategy_C(self):
-        self.y += self.ai_settings.alien_speed_factor / 2
-        self.rect.y = self.y
+        self.rect.centery += self.ai_settings.alien_speed_factor / 2
+
 
 
 class Ship(Sprite):

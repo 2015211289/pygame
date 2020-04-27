@@ -1,6 +1,6 @@
-import random
 import sys
 from time import sleep
+import concurrent.futures
 
 import pygame.font
 
@@ -18,7 +18,7 @@ def exit_game():
 def ship_hit(ai_settings, screen, stats, sb, ship, aliens, bullets):
     if stats.ships_left > 0:
 
-        stats.ships_left -= 1
+        # stats.ships_left -= 1
         sb.prep_ships()
 
         aliens.empty()
@@ -99,10 +99,13 @@ def update_screen(ai_settings, screen, stats, sb, ship, aliens, bullets,
     for alien in aliens:
         alien.blitme()
 
+    # 自动化运行
     if stats.game_active and ai_settings.auto:
-        monitor.getTarget()
-        monitor.search_particles(screen)
-        monitor.show_recognize()
+        monitor.backDiff()
+        monitor.update_particle_groups()
+        monitor.targets_association()
+        monitor.show_predicts()
+
     for bullet in bullets.sprites():
         bullet.draw_bullet()
 
@@ -146,25 +149,28 @@ def fire_bullet(ai_settings, screen, ship, bullets, target):
 
 def create_alien(ai_settings, screen, aliens):
     type = random.randint(1, 3)
-    alien = Alien(ai_settings, screen, type)
+    image_type = random.randint(0, 1)
+    alien = Alien(ai_settings, screen, type, image_type)
+    width, height = screen.get_size()
     alien.rect.centerx = random.randint(alien.rect.width,
-                                        screen.rect.width - alien.rect.width)
-    alien.rect.centery = alien.rect.height
+                                        width - alien.rect.width)
+    alien.rect.centery = random.randint(alien.rect.height,
+                                        height - alien.rect.height)
     aliens.add(alien)
 
 
 def update_aliens(ai_settings, screen, stats, sb, ship, aliens, bullets):
-    check_fleet_edges(ai_settings, aliens)
+    check_aliens_edges(ai_settings, aliens)
     aliens.update()
 
-    if pygame.sprite.spritecollideany(ship, aliens):
-        ship_hit(ai_settings, screen, stats, sb, ship, aliens, bullets)
+    # if pygame.sprite.spritecollideany(ship, aliens):
+    #     ship_hit(ai_settings, screen, stats, sb, ship, aliens, bullets)
 
     check_aliens_bottom(ai_settings, screen, stats, sb, ship, aliens,
                         bullets)
 
 
-def check_fleet_edges(ai_settings, aliens):
+def check_aliens_edges(ai_settings, aliens):
     for alien in aliens.sprites():
         if alien.check_edges():
             alien.direction *= -1
@@ -183,7 +189,7 @@ def check_high_score(stats, sb):
         sb.prep_high_score()
 
 
-def run_game():
+def run_game(pool):
     # initiate
     pygame.init()
     FPS = 30  # frames per second setting
@@ -202,7 +208,7 @@ def run_game():
 
     stats = GameStats(ai_settings)
     sb = Scoreboard(ai_settings, screen, stats)
-    monitor = Monitor(screen)
+    monitor = Monitor(screen, ai_settings,pool)
 
     # recycle
     while True:
@@ -211,10 +217,10 @@ def run_game():
                      bullets)
 
         if stats.game_active:
-            ai_settings.time += 1
-            if ai_settings.time % 5 == 0:
-                create_alien(ai_settings, screen, aliens)
 
+            if ai_settings.time % 10 == 0:
+                create_alien(ai_settings, screen, aliens)
+            ai_settings.time += 1
             ship.update()
             update_bullets(ai_settings, screen, stats, sb,
                            ship, aliens, bullets)
@@ -228,4 +234,5 @@ def run_game():
 
 
 if __name__ == '__main__':
-    run_game()
+    pool=concurrent.futures.ProcessPoolExecutor()
+    run_game(pool)

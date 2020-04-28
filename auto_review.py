@@ -48,8 +48,8 @@ class Particle():
                                cv2.HISTCMP_BHATTACHARYYA)
 
         self.dis = (disH + disS)
-        if self.dis==0:
-            self.dis=0.000001
+        if self.dis == 0:
+            self.dis = 0.000001
         return self.dis
 
     def draw(self, screen):
@@ -70,14 +70,15 @@ class ParticleGroup():
             self.particles.append(Particle(pygame.Rect(rect.left, rect.top,
                                                        rect.width, rect.height),
                                            1 / self.particle_num))
-    def change_rect(self,rect,feature):
+
+    def change_rect(self, rect, feature):
         self.particles.clear()
-        for i in range(0,self.particle_num):
+        for i in range(0, self.particle_num):
             self.particles.append(Particle(pygame.Rect(rect.left, rect.top,
                                                        rect.width, rect.height),
                                            1 / self.particle_num))
-        self.targetFea=feature
-        self.rect=rect
+        self.targetFea = feature
+        self.rect = rect
 
     def update_particles(self, pixelArray, width, height):
         # 权重归一化因子
@@ -171,17 +172,19 @@ class Monitor():
         # 进程池
         self.pool = pool
 
-    def backDiff(self):
-
+    def get_pixelArray(self):
         width, length = self.screen.get_size()
-        pixelArray = numpy.zeros((width, length, 3), dtype='uint8')
-        pygame.pixelcopy.surface_to_array(pixelArray, self.screen)
-        self.pixelArray = pixelArray
-        mark = numpy.zeros((width, length), dtype=int)
+        self.pixelArray = numpy.zeros((width, length, 3), dtype='uint8')
+        pygame.pixelcopy.surface_to_array(self.pixelArray, self.screen)
 
+    def backDiff(self):
+        width, length = self.screen.get_size()
+        mark = numpy.zeros((width, length), dtype=int)
+        pixArray=numpy.asarray(self.pixelArray,dtype=int)
+        pixelArray = numpy.abs(pixArray - self.ai_settings.bg_color[0])
         # 发现前景图
-        for i in range(0, width, 10):
-            for j in range(0, length, 10):
+        for i in range(0, width, 20):
+            for j in range(0, length, 20):
                 if mark[i, j] == 0:
                     pos = [i, i, j, j]
                     # 采用漫水法，寻找前景图
@@ -193,37 +196,38 @@ class Monitor():
                                            pos[1] - pos[0] + 1,
                                            pos[3] - pos[2] + 1)
                         exit = False
-                        Id=0
+                        Id = 0
                         for id in self.targets.keys():
                             if self.targets[id].rect.colliderect(rect):
                                 exit = True
-                                Id=id
+                                Id = id
                                 break
 
-                        # 转换为HSV直方图
-                        bgr = pixelArray[pos[0]:pos[1] + 1, pos[2]:pos[3] + 1,
-                              ::-1]
-
-                        hsv = cv2.cvtColor(bgr, cv2.COLOR_RGB2HSV)
-                        targetH = cv2.calcHist([hsv], [0],
-                                               None,
-                                               [8], [0, 179])
-                        targetS = cv2.calcHist([hsv], [1],
-                                               None,
-                                               [8], [0, 255])
-
                         # 目标重合
-                        if exit and (rect.width>self.targets[Id].rect.width
-                                or rect.height>self.targets[Id].rect.height):
-                            self.targets[Id].rect=rect
-                            self.targets[Id].feature=[targetH,targetS]
-                            pgId=self.targets_to_particle[Id]
-                            pg=self.particle_groups[pgId]
-                            pg.change_rect(rect,[targetH,targetS])
+                        if exit and (rect.width > self.targets[Id].rect.width
+                                     or rect.height > self.targets[
+                                         Id].rect.height):
+                            # 转换为HSV直方图
+                            bgr = self.pixelArray[pos[0]:pos[1] + 1,
+                                  pos[2]:pos[3] + 1, ::-1]
+
+                            hsv = cv2.cvtColor(bgr, cv2.COLOR_RGB2HSV)
+                            targetH = cv2.calcHist([hsv], [0],
+                                                   None,
+                                                   [8], [0, 179])
+                            targetS = cv2.calcHist([hsv], [1],
+                                                   None,
+                                                   [8], [0, 255])
+                            self.targets[Id].rect = rect
+                            self.targets[Id].feature = [targetH, targetS]
+                            pgId = self.targets_to_particle[Id]
+                            pg = self.particle_groups[pgId]
+                            pg.change_rect(rect, [targetH, targetS])
                             print("overlap")
                         # 目标分离
-                        elif exit and (rect.width<self.targets[Id].rect.width
-                                and rect.height<self.targets[Id].rect.height):
+                        elif exit and (rect.width < self.targets[Id].rect.width
+                                       and rect.height < self.targets[
+                                           Id].rect.height):
                             del self.targets[Id]
                             pgId = self.targets_to_particle[Id]
                             del self.particle_groups[pgId]
@@ -231,8 +235,19 @@ class Monitor():
                             print("divide")
                         # 创建新目标
                         elif not exit:
+                            # 转换为HSV直方图
+                            bgr = self.pixelArray[pos[0]:pos[1] + 1,
+                                  pos[2]:pos[3] + 1, ::-1]
+
+                            hsv = cv2.cvtColor(bgr, cv2.COLOR_RGB2HSV)
+                            targetH = cv2.calcHist([hsv], [0],
+                                                   None,
+                                                   [8], [0, 179])
+                            targetS = cv2.calcHist([hsv], [1],
+                                                   None,
+                                                   [8], [0, 255])
                             target = Target(rect, [targetH, targetS],
-                                        self.target_num)
+                                            self.target_num)
                             self.target_num += 1
                             if self.target_num == 100:
                                 self.target_num = 0
@@ -249,86 +264,6 @@ class Monitor():
                             self.targets_to_particle[target.id] = pg.id
                             print("new")
 
-    def targets_association(self):
-        targets_to_particle = self.targets_to_particle.copy()
-        targets = self.targets.copy()
-        particle_groups = self.particle_groups.copy()
-        compara=[]
-        for i in self.targets.keys():
-            # 处理目标消失
-            disappear = True
-            for x in range(self.targets[i].rect.left,
-                           self.targets[i].rect.right, 10):
-                for y in range(self.targets[i].rect.top,
-                               self.targets[i].rect.bottom, 10):
-                    r = abs(self.pixelArray[x, y, 0] -
-                            self.ai_settings.bg_color[0])
-                    g = abs(self.pixelArray[x, y, 1] -
-                            self.ai_settings.bg_color[1])
-                    b = abs(self.pixelArray[x, y, 2] -
-                            self.ai_settings.bg_color[2])
-                    t = 0.299 * r + 0.587 * g + 0.114 * b
-
-                    if t > 30:
-                        disappear = False
-                    if not disappear: break
-                if not disappear: break
-
-            if disappear:
-                del targets[i]
-                id = self.targets_to_particle[i]
-                del particle_groups[id]
-                del targets_to_particle[i]
-                continue
-
-            # 处理目标重合
-            for j in self.targets.keys():
-                if j in compara:
-                    continue
-                if self.targets[i].rect.colliderect(self.targets[j].rect) and \
-                    i != j:
-                    dis = 0
-                    for k in range(0, 2):
-                        dis += cv2.compareHist(self.targets[i].feature[k],
-                                               self.targets[j].feature[k],
-                                               cv2.HISTCMP_BHATTACHARYYA)
-
-                    if dis <= 0.001:
-                        if j in targets.keys():
-                            del targets[j]
-                        id = self.targets_to_particle[j]
-                        if id in particle_groups.keys():
-                            del particle_groups[id]
-                        if j in targets_to_particle.keys():
-                            del targets_to_particle[j]
-                    elif self.targets[i].rect.width>self.targets[
-                        j].rect.width and self.targets[
-                        i].rect.height>self.targets[j].rect.height:
-                        if j in targets.keys():
-                            del targets[j]
-                        id = self.targets_to_particle[j]
-                        if id in particle_groups.keys():
-                            del particle_groups[id]
-                        if j in targets_to_particle.keys():
-                            del targets_to_particle[j]
-                    elif self.targets[i].rect.width<=self.targets[
-                        j].rect.width and self.targets[
-                        i].rect.height<=self.targets[j].rect.height:
-                        if i in targets.keys():
-                            del targets[i]
-                        id = self.targets_to_particle[i]
-                        if id in particle_groups.keys():
-                            del particle_groups[id]
-                        if i in targets_to_particle.keys():
-                            del targets_to_particle[i]
-
-            compara.append(i)
-
-        self.targets_to_particle = targets_to_particle
-        self.targets = targets
-        self.particle_groups = particle_groups
-
-
     def searchTarget(self, pixelArray, i, j, mark, width, length,
                      pos):
 
@@ -338,9 +273,9 @@ class Monitor():
         while not len(q) == 0:
             (i, j) = q.pop(0)
 
-            r = abs(pixelArray[i, j, 0] - self.ai_settings.bg_color[0])
-            g = abs(pixelArray[i, j, 1] - self.ai_settings.bg_color[1])
-            b = abs(pixelArray[i, j, 2] - self.ai_settings.bg_color[2])
+            r = pixelArray[i, j, 0]
+            g = pixelArray[i, j, 1]
+            b = pixelArray[i, j, 2]
             t = 0.299 * r + 0.587 * g + 0.114 * b
 
             if t > 30:
@@ -369,6 +304,88 @@ class Monitor():
             return 1
         else:
             return 0
+
+    def targets_association(self):
+        targets_to_particle = self.targets_to_particle.copy()
+        targets = self.targets.copy()
+        particle_groups = self.particle_groups.copy()
+        compared = set()
+        for i in self.targets.keys():
+            if i in compared:
+                continue
+            compared.add(i)
+            # 处理目标消失
+            disappear = True
+            for x in range(self.targets[i].rect.left,
+                           self.targets[i].rect.right, 10):
+                for y in range(self.targets[i].rect.top,
+                               self.targets[i].rect.bottom, 10):
+                    r = abs(self.pixelArray[x, y, 0] -
+                            self.ai_settings.bg_color[0])
+                    g = abs(self.pixelArray[x, y, 1] -
+                            self.ai_settings.bg_color[1])
+                    b = abs(self.pixelArray[x, y, 2] -
+                            self.ai_settings.bg_color[2])
+                    t = 0.299 * r + 0.587 * g + 0.114 * b
+
+                    if t > 30:
+                        disappear = False
+                    if not disappear: break
+                if not disappear: break
+
+            # 删除空粒子滤波和目标
+            if disappear:
+                del targets[i]
+                id = self.targets_to_particle[i]
+                del particle_groups[id]
+                del targets_to_particle[i]
+                continue
+
+            # 处理目标重合
+            for j in self.targets.keys():
+                if j in compared:
+                    continue
+                if self.targets[i].rect.colliderect(self.targets[j].rect):
+                    dis = 0
+                    for k in range(0, 2):
+                        dis += cv2.compareHist(self.targets[i].feature[k],
+                                               self.targets[j].feature[k],
+                                               cv2.HISTCMP_BHATTACHARYYA)
+                    # 删除重合目标和粒子滤波
+                    if dis <= 0.001:
+
+                        del targets[j]
+                        id = self.targets_to_particle[j]
+
+                        del particle_groups[id]
+
+                        del targets_to_particle[j]
+                        compared.add(j)
+                    elif self.targets[i].rect.width > self.targets[
+                        j].rect.width and self.targets[
+                        i].rect.height > self.targets[j].rect.height:
+
+                        del targets[j]
+                        id = self.targets_to_particle[j]
+
+                        del particle_groups[id]
+
+                        del targets_to_particle[j]
+                        compared.add(j)
+                    elif self.targets[i].rect.width <= self.targets[
+                        j].rect.width and self.targets[
+                        i].rect.height <= self.targets[j].rect.height:
+
+                        del targets[i]
+                        id = self.targets_to_particle[i]
+
+                        del particle_groups[id]
+
+                        del targets_to_particle[i]
+
+        self.targets_to_particle = targets_to_particle
+        self.targets = targets
+        self.particle_groups = particle_groups
 
     def update_particle_groups(self):
         width, height = self.screen.get_size()

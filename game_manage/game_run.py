@@ -101,7 +101,9 @@ def update_screen(ai_settings, screen, stats, sb, ship, aliens, bullets,
 
     # 自动化运行
     if stats.game_active and ai_settings.auto:
-        monitor.backDiff()
+        monitor.get_pixelArray()
+        if ai_settings.time % 3 ==0:
+            monitor.backDiff()
         monitor.update_particle_groups()
         monitor.targets_association()
         monitor.show_predicts()

@@ -180,12 +180,14 @@ class Monitor():
     def backDiff(self):
         width, length = self.screen.get_size()
         mark = numpy.zeros((width, length), dtype=int)
-        pixArray=numpy.asarray(self.pixelArray,dtype=int)
+        # 背景差分法
+        pixArray = numpy.asarray(self.pixelArray, dtype=int)
         pixelArray = numpy.abs(pixArray - self.ai_settings.bg_color[0])
         # 发现前景图
-        for i in range(0, width, 20):
-            for j in range(0, length, 20):
-                if mark[i, j] == 0:
+        found=list(self.targets.keys())
+        for i in range(0, width, 50):
+            for j in range(0, length, 50):
+                if mark.item(i, j) == 0:
                     pos = [i, i, j, j]
                     # 采用漫水法，寻找前景图
                     r = self.searchTarget(pixelArray, i, j, mark, width,
@@ -197,44 +199,46 @@ class Monitor():
                                            pos[3] - pos[2] + 1)
                         exit = False
                         Id = 0
-                        for id in self.targets.keys():
+                        for id in found:
                             if self.targets[id].rect.colliderect(rect):
                                 exit = True
                                 Id = id
                                 break
 
                         # 目标重合
-                        if exit and (rect.width > self.targets[Id].rect.width
-                                     or rect.height > self.targets[
-                                         Id].rect.height):
-                            # 转换为HSV直方图
-                            bgr = self.pixelArray[pos[0]:pos[1] + 1,
-                                  pos[2]:pos[3] + 1, ::-1]
+                        if exit:
+                            found.remove(Id)
+                            if (rect.width > self.targets[Id].rect.width
+                                    or rect.height > self.targets[
+                                        Id].rect.height):
+                                # 转换为HSV直方图
+                                bgr = self.pixelArray[pos[0]:pos[1] + 1,
+                                      pos[2]:pos[3] + 1, ::-1]
 
-                            hsv = cv2.cvtColor(bgr, cv2.COLOR_RGB2HSV)
-                            targetH = cv2.calcHist([hsv], [0],
-                                                   None,
-                                                   [8], [0, 179])
-                            targetS = cv2.calcHist([hsv], [1],
-                                                   None,
-                                                   [8], [0, 255])
-                            self.targets[Id].rect = rect
-                            self.targets[Id].feature = [targetH, targetS]
-                            pgId = self.targets_to_particle[Id]
-                            pg = self.particle_groups[pgId]
-                            pg.change_rect(rect, [targetH, targetS])
-                            print("overlap")
-                        # 目标分离
-                        elif exit and (rect.width < self.targets[Id].rect.width
-                                       and rect.height < self.targets[
-                                           Id].rect.height):
-                            del self.targets[Id]
-                            pgId = self.targets_to_particle[Id]
-                            del self.particle_groups[pgId]
-                            del self.targets_to_particle[Id]
-                            print("divide")
+                                hsv = cv2.cvtColor(bgr, cv2.COLOR_RGB2HSV)
+                                targetH = cv2.calcHist([hsv], [0],
+                                                       None,
+                                                       [8], [0, 179])
+                                targetS = cv2.calcHist([hsv], [1],
+                                                       None,
+                                                       [8], [0, 255])
+                                self.targets[Id].rect = rect
+                                self.targets[Id].feature = [targetH, targetS]
+                                pgId = self.targets_to_particle[Id]
+                                pg = self.particle_groups[pgId]
+                                pg.change_rect(rect, [targetH, targetS])
+                                # print("overlap")
+                            # 目标分离
+                            elif (rect.width < self.targets[Id].rect.width
+                                  and rect.height < self.targets[
+                                      Id].rect.height):
+                                del self.targets[Id]
+                                pgId = self.targets_to_particle[Id]
+                                del self.particle_groups[pgId]
+                                del self.targets_to_particle[Id]
+                                # print("divide")
                         # 创建新目标
-                        elif not exit:
+                        else:
                             # 转换为HSV直方图
                             bgr = self.pixelArray[pos[0]:pos[1] + 1,
                                   pos[2]:pos[3] + 1, ::-1]
@@ -262,43 +266,46 @@ class Monitor():
                                 self.particle_group_num = 0
                             self.particle_groups[pg.id] = pg
                             self.targets_to_particle[target.id] = pg.id
-                            print("new")
+                            # print("new")
 
     def searchTarget(self, pixelArray, i, j, mark, width, length,
                      pos):
 
         q = [(i, j)]
-        mark[i, j] = 1
+        mark.itemset((i, j), 1)
         target = False
         while not len(q) == 0:
             (i, j) = q.pop(0)
 
-            r = pixelArray[i, j, 0]
-            g = pixelArray[i, j, 1]
-            b = pixelArray[i, j, 2]
+            r = pixelArray.item(i, j, 0)
+            g = pixelArray.item(i, j, 1)
+            b = pixelArray.item(i, j, 2)
             t = 0.299 * r + 0.587 * g + 0.114 * b
 
             if t > 30:
                 target = True
 
-                if i > pos[1]: pos[1] = i
-                if i < pos[0]: pos[0] = i
-                if j > pos[3]: pos[3] = j
-                if j < pos[2]: pos[2] = j
+                if i > pos[1]:
+                    pos[1] = i
+                elif i < pos[0]:
+                    pos[0] = i
+                if j > pos[3]:
+                    pos[3] = j
+                elif j < pos[2]:
+                    pos[2] = j
 
-                if i + 1 < width and mark[i + 1, j] == 0:
+                if i + 1 < width and mark.item(i + 1, j) == 0:
                     q.append((i + 1, j))
-                    mark[i + 1, j] = 1
-                if j + 1 < length and mark[i, j + 1] == 0:
+                    mark.itemset((i + 1, j), 1)
+                if j + 1 < length and mark.item(i, j + 1) == 0:
                     q.append((i, j + 1))
-                    mark[i, j + 1] = 1
-
-                if i - 1 >= 0 and mark[i - 1, j] == 0:
+                    mark.itemset((i, j + 1), 1)
+                if i - 1 >= 0 and mark.item(i - 1, j) == 0:
                     q.append((i - 1, j))
-                    mark[i - 1, j] = 1
-                if j - 1 >= 0 and mark[i, j - 1] == 0:
+                    mark.itemset((i - 1, j), 1)
+                if j - 1 >= 0 and mark.item(i, j - 1) == 0:
                     q.append((i, j - 1))
-                    mark[i, j - 1] = 1
+                    mark.itemset((i, j - 1), 1)
 
         if target:
             return 1
@@ -320,18 +327,20 @@ class Monitor():
                            self.targets[i].rect.right, 10):
                 for y in range(self.targets[i].rect.top,
                                self.targets[i].rect.bottom, 10):
-                    r = abs(self.pixelArray[x, y, 0] -
+                    r = abs(self.pixelArray.item(x, y, 0) -
                             self.ai_settings.bg_color[0])
-                    g = abs(self.pixelArray[x, y, 1] -
+                    g = abs(self.pixelArray.item(x, y, 1) -
                             self.ai_settings.bg_color[1])
-                    b = abs(self.pixelArray[x, y, 2] -
+                    b = abs(self.pixelArray.item(x, y, 2) -
                             self.ai_settings.bg_color[2])
                     t = 0.299 * r + 0.587 * g + 0.114 * b
 
                     if t > 30:
                         disappear = False
-                    if not disappear: break
-                if not disappear: break
+                    if not disappear:
+                        break
+                if not disappear:
+                    break
 
             # 删除空粒子滤波和目标
             if disappear:
@@ -375,8 +384,8 @@ class Monitor():
                     elif self.targets[i].rect.width <= self.targets[
                         j].rect.width and self.targets[
                         i].rect.height <= self.targets[j].rect.height:
-
-                        del targets[i]
+                        if i in targets.keys():
+                            del targets[i]
                         id = self.targets_to_particle[i]
 
                         del particle_groups[id]

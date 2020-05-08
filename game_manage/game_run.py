@@ -101,12 +101,10 @@ def update_screen(ai_settings, screen, stats, sb, ship, aliens, bullets,
 
     # 自动化运行
     if stats.game_active and ai_settings.auto:
-        monitor.get_pixelArray()
-        if ai_settings.time % 3 ==0:
-            monitor.backDiff()
-        monitor.update_particle_groups()
-        monitor.targets_association()
-        monitor.show_predicts()
+        monitor.get_background()
+        monitor.backDiff()
+        ret=monitor.update()
+        monitor.show_predicts(ret)
 
     for bullet in bullets.sprites():
         bullet.draw_bullet()
@@ -191,7 +189,7 @@ def check_high_score(stats, sb):
         sb.prep_high_score()
 
 
-def run_game(pool):
+def run_game():
     # initiate
     pygame.init()
     FPS = 30  # frames per second setting
@@ -210,7 +208,7 @@ def run_game(pool):
 
     stats = GameStats(ai_settings)
     sb = Scoreboard(ai_settings, screen, stats)
-    monitor = Monitor(screen, ai_settings,pool)
+    monitor = Monitor(screen, ai_settings)
 
     # recycle
     while True:
@@ -236,5 +234,4 @@ def run_game(pool):
 
 
 if __name__ == '__main__':
-    pool=concurrent.futures.ProcessPoolExecutor()
-    run_game(pool)
+    run_game()

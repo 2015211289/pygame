@@ -1,8 +1,13 @@
+import numpy as np
+
 class Settings():
     def __init__(self):
         self.screen_width = 1200
         self.screen_height = 700
         self.bg_color = (230, 230, 230)
+        self.bg=np.array(self.bg_color*self.screen_width*self.screen_height
+                         ,dtype='uint8').reshape((self.screen_width,
+                                              self.screen_height,3))
         self.ship_limit = 3
 
         self.fleet_drop_speed = 5
